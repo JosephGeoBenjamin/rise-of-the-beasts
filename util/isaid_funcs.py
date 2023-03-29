@@ -11,6 +11,9 @@ def load_weights_from_defromDETR(ckpt_path, model):
 
     #TODO:JGB fix below
     # pretrain_dict = {k: v for k, v in pretrain_dict.items() if key_check(k)}
+    ## OR
+    # del checkpoint["model"]["class_embed.weight"]
+    # del checkpoint["model"]["class_embed.bias"]
 
     model.load_state_dict(pretrain_dict, strict=False)
     print(f"Pretrain Loaded ...{ckpt_path}  After removing class_embed tokens")

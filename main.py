@@ -7,7 +7,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 # ------------------------------------------------------------------------
 
-
+import os, sys
 import argparse
 import datetime
 import json
@@ -319,9 +319,17 @@ def main(args):
                      'epoch': epoch,
                      'n_parameters': n_parameters}
 
+        ## Logging to text files
         if args.output_dir and utils.is_main_process():
             with (output_dir / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
+            ## Enna Enna Kambikkatra vela ellam pakka vendiyatha iruku !!!
+            original_stdout = sys.stdout
+            with (output_dir / "eval-AP.txt").open("a") as f:
+                sys.stdout = f
+                print(f"Epoch:{epoch}")
+                coco_evaluator.summarize()
+                sys.stdout = original_stdout
 
             # for evaluation logs
             if coco_evaluator is not None:

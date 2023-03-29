@@ -155,7 +155,7 @@ def make_isaid_transforms(image_set):
     raise ValueError(f'unknown {image_set}')
 
 
-def build_from_instance_patches(image_set, args): ## MBZUAI CV703
+def build_from_image_patches(image_set, args): ## MBZUAI CV703
     root = Path(args.isaid_path)
     assert root.exists(), f'provided ISAID path {root} does not exist'
     mode = 'instancesonly_filtered'
