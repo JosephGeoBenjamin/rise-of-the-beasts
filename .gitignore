@@ -1,0 +1,17 @@
+.vscode
+
+__pycache__
+*.ipynb
+*.egg*
+build
+dist
+
+
+configs/*
+weights/*
+pretrained/*
+OUTDIR/*
+todo.txt
+
+!README.md
+!readme.md

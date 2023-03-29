@@ -2,7 +2,7 @@
 
 set -x
 
-EXP_DIR=exps/r50_deformable_detr_single_scale
+EXP_DIR=OUTDIR/r50_deformable_detr_single_scale
 PY_ARGS=${@:1}
 
 python -u main.py \
