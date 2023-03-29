@@ -442,9 +442,14 @@ class MLP(nn.Module):
 
 
 def build(args):
-    num_classes = 20 if args.dataset_file != 'coco' else 91
-    if args.dataset_file == "coco_panoptic":
+    num_classes = 20
+    if args.dataset_file == 'coco':
+        num_classes = 91
+    elif args.dataset_file == "coco_panoptic":
         num_classes = 250
+    elif args.dataset_file == "isaid_patches":
+        num_classes = 91 #TODO:JGB fix this
+
     device = torch.device(args.device)
 
     backbone = build_backbone(args)

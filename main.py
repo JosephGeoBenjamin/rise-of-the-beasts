@@ -14,6 +14,7 @@ import json
 import random
 import time
 from pathlib import Path
+import torchinfo
 
 import numpy as np
 import torch
@@ -25,6 +26,7 @@ from datasets import build_dataset, get_coco_api_from_dataset
 from engine import evaluate, train_one_epoch
 from models import build_model
 
+import util.isaid_funcs as isaidF
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Deformable DETR Detector', add_help=False)
@@ -51,6 +53,10 @@ def get_args_parser():
     # Model parameters
     parser.add_argument('--frozen_weights', type=str, default=None,
                         help="Path to the pretrained model. If set, only the mask head will be trained")
+
+    parser.add_argument('--detection_pretrained', type=str, default=None,
+                        help="Path to the pretrained model to be loaded" +\
+                        "from official DeformDETR implementation")
 
     # * Backbone
     parser.add_argument('--backbone', default='resnet50', type=str,
@@ -230,6 +236,14 @@ def main(args):
     if args.frozen_weights is not None:
         checkpoint = torch.load(args.frozen_weights, map_location='cpu')
         model_without_ddp.detr.load_state_dict(checkpoint['model'])
+
+
+    # manually load weights from DeformDTER
+    if args.dataset_file == "isaid_patches":
+        model_without_ddp = isaidF.load_weights_from_defromDETR(
+                                    args.detection_pretrained,
+                                    model_without_ddp)
+
 
     output_dir = Path(args.output_dir)
     if args.resume:
