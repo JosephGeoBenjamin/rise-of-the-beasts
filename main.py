@@ -352,4 +352,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+        with open(args.output_dir+"/exp_cfg.json", 'a') as f:
+            json.dump(vars(args), f, indent=4)
+
     main(args)

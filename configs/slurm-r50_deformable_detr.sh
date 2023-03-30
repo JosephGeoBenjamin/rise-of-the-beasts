@@ -2,7 +2,7 @@
 
 set -x
 
-EXP_DIR=E01-r50_deformable_detr-baseline-2
+EXP_DIR=dummy/E01-r50_deformable_detr-baseline-2
 PY_ARGS=${@:1}
 
 EXP_DIR

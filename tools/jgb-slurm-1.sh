@@ -18,4 +18,4 @@ hostname
 date
 # conda activate cv703
 cd ${ROOTPATH}
-GPUS_PER_NODE=${GPUS} ./tools/run_dist_launch.sh ${GPUS} ${PORT} ./configs/r50_deformable_detr.sh
+GPUS_PER_NODE=${GPUS} ./tools/run_dist_launch.sh ${GPUS} ${PORT} ./configs/slurm-r50_deformable_detr.sh
