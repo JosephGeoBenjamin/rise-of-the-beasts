@@ -2,10 +2,14 @@
 
 set -x
 
-EXP_DIR=OUTDIR/r50_deformable_detr-baseline
+EXP_DIR=E01-r50_deformable_detr-baseline-2
 PY_ARGS=${@:1}
 
+EXP_DIR
 python -u main.py \
-    --output_dir ${EXP_DIR} \
+    --batch_size 4 \
+    --epochs 20 \
+    --output_dir ~/jgeob/OUTDIR/${EXP_DIR} \
+    --isaid_path /nfs/projects/cv703/jazz-cvgroup-9/  \
     --detection_pretrained pretrained/r50_deformable_detr-checkpoint.pth
     ${PY_ARGS}
