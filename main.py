@@ -86,8 +86,8 @@ def get_args_parser():
                         help="Number of attention heads inside the transformer's attentions")
     parser.add_argument('--num_queries', default=300, type=int,
                         help="Number of query slots")
-    parser.add_argument('--dec_n_points', default=4, type=int)
-    parser.add_argument('--enc_n_points', default=4, type=int)
+    parser.add_argument('--dec_n_points', default=16, type=int)
+    parser.add_argument('--enc_n_points', default=16, type=int)
 
     # * Segmentation
     parser.add_argument('--masks', action='store_true',
@@ -240,11 +240,14 @@ def main(args):
         model_without_ddp.detr.load_state_dict(checkpoint['model'])
 
 
+    ## NOTE: ALWAYS CHECK THIS
     # manually load weights from DeformDTER
-    if args.dataset_file == "isaid_patches":
+    if (args.dataset_file == "isaid_patches") and args.detection_pretrained:
         model_without_ddp = isaidF.load_weights_from_defromDETR(
                                     args.detection_pretrained,
-                                    model_without_ddp)
+                                    model_without_ddp,
+                                    remove_weight=["cross_attn", "self_attn"]
+                                    )
 
 
     output_dir = Path(args.output_dir)
@@ -319,7 +322,9 @@ def main(args):
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      **{f'test_{k}': v for k, v in test_stats.items()},
                      'epoch': epoch,
-                     'n_parameters': n_parameters}
+                     'n_parameters': n_parameters,
+                     'time' : time.time() - start_time,
+                     }
 
         ## Logging to text files
         if args.output_dir and utils.is_main_process():
