@@ -28,6 +28,8 @@ from models import build_model
 
 import util.isaid_funcs as isaidF
 
+## FREEZE FOR BASE DETR
+
 def get_args_parser():
     parser = argparse.ArgumentParser('Deformable DETR Detector', add_help=False)
     parser.add_argument('--lr',                 default=2e-4, type=float)
