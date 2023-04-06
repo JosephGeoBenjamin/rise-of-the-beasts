@@ -96,6 +96,8 @@ class MSDeformAttn(nn.Module):
             value = value.masked_fill(input_padding_mask[..., None], float(0))
         value = value.view(N, Len_in, self.n_heads, self.d_model // self.n_heads)
         sampling_offsets = self.sampling_offsets(query).view(N, Len_q, self.n_heads, self.n_levels, self.n_points, 2)
+
+
         attention_weights = self.attention_weights(query).view(N, Len_q, self.n_heads, self.n_levels * self.n_points)
         attention_weights = F.softmax(attention_weights, -1).view(N, Len_q, self.n_heads, self.n_levels, self.n_points)
         # N, Len_q, n_heads, n_levels, n_points, 2
@@ -109,6 +111,24 @@ class MSDeformAttn(nn.Module):
         else:
             raise ValueError(
                 'Last dim of reference_points must be 2 or 4, but get {} instead.'.format(reference_points.shape[-1]))
+        # print("HHH"*30, sampling_offsets.shape)
+
+        """
+        NOTE: JGEOB
+        example = [4, SomeDim, 8, 4, 16, 2]
+        SomeDim = 12061, 14184, 11253, 20555, 13294, 12516, 8500, 10422, 13294, 11253 Laced:300
+
+        Batch: 4
+        att Heads: 8
+        Feature_Levels: 4
+        Keys: 16
+        x,y Vector: 2
+
+        [B, SOME, H, FL, K, xyV]
+
+        """
+
+
         output = MSDeformAttnFunction.apply(
             value, input_spatial_shapes, input_level_start_index, sampling_locations, attention_weights, self.im2col_step)
         output = self.output_proj(output)
