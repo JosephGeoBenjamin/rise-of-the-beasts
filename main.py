@@ -86,8 +86,8 @@ def get_args_parser():
                         help="Number of attention heads inside the transformer's attentions")
     parser.add_argument('--num_queries', default=300, type=int,
                         help="Number of query slots")
-    parser.add_argument('--dec_n_points', default=16, type=int)
-    parser.add_argument('--enc_n_points', default=16, type=int)
+    parser.add_argument('--dec_n_points', default=4, type=int)
+    parser.add_argument('--enc_n_points', default=4, type=int)
 
     # * Segmentation
     parser.add_argument('--masks', action='store_true',
@@ -125,7 +125,14 @@ def get_args_parser():
             default='/apps/local/shared/CV703/datasets/iSAID/',
             type=str)
 
+    #Token Merging
+    parser.add_argument('--enable-token-merge', default=True)
+    parser.add_argument('--num-token-merge', default=[32]*6, nargs='+', type=int,
+                        help="R - Number of Tokens to merge at each layer in encoder"
+                        "List len should be equal to number of encoder layers")
 
+
+    # other parameters
     parser.add_argument('--output_dir', default='OUTDIR/dummy',
                         help='path where to save, empty for no saving')
     parser.add_argument('--device', default='cuda',
@@ -246,7 +253,7 @@ def main(args):
         model_without_ddp = isaidF.load_weights_from_defromDETR(
                                     args.detection_pretrained,
                                     model_without_ddp,
-                                    remove_weight=["cross_attn", "self_attn"]
+                                    # remove_weight=["cross_attn", "self_attn"]
                                     )
 
 

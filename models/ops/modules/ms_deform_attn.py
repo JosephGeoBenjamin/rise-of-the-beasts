@@ -10,6 +10,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import sys
 import warnings
 import math
 
@@ -89,6 +90,11 @@ class MSDeformAttn(nn.Module):
         """
         N, Len_q, _ = query.shape
         N, Len_in, _ = input_flatten.shape
+
+        print("DEBUG: ATTENTION FUNC in lens", Len_in, Len_q, )
+        print("DEBUG: ATTENTION FUNC shapes", input_spatial_shapes[:, 0], input_spatial_shapes[:, 1],
+                input_spatial_shapes[:, 0]*input_spatial_shapes[:, 1],)
+
         assert (input_spatial_shapes[:, 0] * input_spatial_shapes[:, 1]).sum() == Len_in
 
         value = self.value_proj(input_flatten)
@@ -111,25 +117,31 @@ class MSDeformAttn(nn.Module):
         else:
             raise ValueError(
                 'Last dim of reference_points must be 2 or 4, but get {} instead.'.format(reference_points.shape[-1]))
-        # print("HHH"*30, sampling_offsets.shape)
 
+
+        #DEBUG
+        # print_tensor = sampling_locations[1,1,1,1,1,:]
+        # print("HHH"*10, print_tensor,sampling_locations.min(), sampling_locations.max())
         """
-        NOTE: JGEOB
-        example = [4, SomeDim, 8, 4, 16, 2]
+        JGB NOTE: sampling_locations
+        [B, SOME, H, FL, K, xyV]
+        example = [4, SomeDim, 8, 4, 4, 2]
         SomeDim = 12061, 14184, 11253, 20555, 13294, 12516, 8500, 10422, 13294, 11253 Laced:300
-
         Batch: 4
         att Heads: 8
         Feature_Levels: 4
         Keys: 16
         x,y Vector: 2
-
-        [B, SOME, H, FL, K, xyV]
-
         """
-
 
         output = MSDeformAttnFunction.apply(
             value, input_spatial_shapes, input_level_start_index, sampling_locations, attention_weights, self.im2col_step)
         output = self.output_proj(output)
+
         return output
+
+
+
+
+
+##======================================================================================================================

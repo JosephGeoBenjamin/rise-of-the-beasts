@@ -159,6 +159,21 @@ def parse_args():
 def main():
     args = parse_args()
 
+    ## DEBUG: JGB
+    # args.nnodes = 1
+    # args.node_rank = 0
+    # args.master_addr = "127.0.0.1"
+    # args.master_port = "29500"
+    # args.nproc_per_node = 1
+    # args.training_script = "python -u /home/joseph.benjamin/LABS/cv703/project-work/Deformable-DETR/main.py \
+    # --batch_size 4 \
+    # --epochs 55 \
+    # --output_dir  /home/joseph.benjamin/LABS/cv703/project-work/Deformable-DETR/OUTDIR/dummy/r50_deformable_detr-tome\
+    # --resume /home/joseph.benjamin/LABS/cv703/project-work/Deformable-DETR/OUTDIR/dummy/r50_deformable_detr-tome \
+    # --isaid_path /nfs/projects/cv703/jazz-cvgroup-9/ \
+    # --detection_pretrained pretrained/r50_deformable_detr-checkpoint.pth \
+    # "
+
     # world size in terms of number of processes
     dist_world_size = args.nproc_per_node * args.nnodes
 

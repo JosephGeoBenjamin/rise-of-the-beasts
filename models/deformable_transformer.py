@@ -19,13 +19,16 @@ from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_
 from util.misc import inverse_sigmoid
 from models.ops.modules import MSDeformAttn
 
+from models import tome
+
 
 class DeformableTransformer(nn.Module):
     def __init__(self, d_model=256, nhead=8,
                  num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=1024, dropout=0.1,
                  activation="relu", return_intermediate_dec=False,
                  num_feature_levels=4, dec_n_points=4,  enc_n_points=4,
-                 two_stage=False, two_stage_num_proposals=300):
+                 two_stage=False, two_stage_num_proposals=300,
+                 tome_info={"enable":False}):
         super().__init__()
 
         self.d_model = d_model
@@ -35,8 +38,12 @@ class DeformableTransformer(nn.Module):
 
         encoder_layer = DeformableTransformerEncoderLayer(d_model, dim_feedforward,
                                                           dropout, activation,
-                                                          num_feature_levels, nhead, enc_n_points)
-        self.encoder = DeformableTransformerEncoder(encoder_layer, num_encoder_layers)
+                                                          num_feature_levels,
+                                                          nhead, enc_n_points,
+                                                          tome_info)
+        self.encoder = DeformableTransformerEncoder(encoder_layer,
+                                                    num_encoder_layers,
+                                                    tome_info)
 
         decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
                                                           dropout, activation,
@@ -149,9 +156,12 @@ class DeformableTransformer(nn.Module):
         level_start_index = torch.cat((spatial_shapes.new_zeros((1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
         valid_ratios = torch.stack([self.get_valid_ratio(m) for m in masks], 1)
 
+        print("DEBUG: ~~~~~~~~~~~~~~~~~~ SPATIAL SHAPE", spatial_shapes)
+
         # encoder
         memory = self.encoder(src_flatten, spatial_shapes, level_start_index, valid_ratios, lvl_pos_embed_flatten, mask_flatten)
 
+        print("DEBUG: X-ENCODER OUT",memory.shape)
         # prepare input for decoder
         bs, _, c = memory.shape
         if self.two_stage:
@@ -180,6 +190,8 @@ class DeformableTransformer(nn.Module):
         hs, inter_references = self.decoder(tgt, reference_points, memory,
                                             spatial_shapes, level_start_index, valid_ratios, query_embed, mask_flatten)
 
+        print("DEBUG: X-DECODER:", hs.shape, inter_references.shape)
+        # exit()
         inter_references_out = inter_references
         if self.two_stage:
             return hs, init_reference_out, inter_references_out, enc_outputs_class, enc_outputs_coord_unact
@@ -190,8 +202,13 @@ class DeformableTransformerEncoderLayer(nn.Module):
     def __init__(self,
                  d_model=256, d_ffn=1024,
                  dropout=0.1, activation="relu",
-                 n_levels=4, n_heads=8, n_points=4):
+                 n_levels=4, n_heads=8, n_points=4,
+                 tome_info={"enable":False}
+                 ):
         super().__init__()
+
+        # token merge
+        self.tome_info = tome_info
 
         # self attention
         self.self_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
@@ -216,23 +233,72 @@ class DeformableTransformerEncoderLayer(nn.Module):
         src = self.norm2(src)
         return src
 
+    def forward_tome(self, x, pos):
+        """
+        Refered from https://github.com/facebookresearch/ToMe
+        tome_info={
+            "enable":True,
+            "R": [25]*6 #num-of-encoder-layers
+            "trace_source": False,
+            "source": TBF
+            "size" ; None  #for proportional attention
+            }
+
+        """
+        # for token merging
+        r = self.tome_info["R"].pop(0)
+        metric = x.mean(0)
+        if r > 0:
+            merge, _, some_idx = tome.bipartite_soft_matching( metric, r,
+                None,  #Class Token in classiifer context
+                False, #distill Token
+                )
+            # if self.tome_info.get("trace_source"):
+            #     self.tome_info["source"] = tome.merge_source(
+            #         merge, x, self._tome_info["source"]
+            #     )
+
+            ## Callable merge just merges any tensor we send to it
+
+            x, self.tome_info["size"] = tome.merge_wavg(merge, x, self.tome_info.get("size") )
+            pos =  merge(pos, mode="sum")
+
+        return x , pos
+
+
     def forward(self, src, pos, reference_points, spatial_shapes, level_start_index, padding_mask=None):
         # self attention
+        print("DEBUG: SRC, POS ENC-Lay", src.shape, pos.shape)
         src2 = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index, padding_mask)
         src = src + self.dropout1(src2)
-        src = self.norm1(src)
 
+        print("DEBUG: POS PRIOR ", pos[0, :25,:])
+
+        # token merge
+        if self.tome_info.get("enable"):
+            src, pos = self.forward_tome(src, pos)
+
+        print("DEBUG: POS shape", pos.shape)
+        print("DEBUG: POS AFTER", pos[0, :25,:])
         # ffn
+        src = self.norm1(src)
         src = self.forward_ffn(src)
 
-        return src
+        # return
+        if self.tome_info.get("enable"):
+            ret = (src, pos)
+        else:
+            ret = src
+
+        return ret
 
 
 class DeformableTransformerEncoder(nn.Module):
-    def __init__(self, encoder_layer, num_layers):
+    def __init__(self, encoder_layer, num_layers, tome_info={"enable":False}):
         super().__init__()
         self.layers = _get_clones(encoder_layer, num_layers)
         self.num_layers = num_layers
+        self.tome_info = tome_info
 
     @staticmethod
     def get_reference_points(spatial_shapes, valid_ratios, device):
@@ -250,10 +316,25 @@ class DeformableTransformerEncoder(nn.Module):
         return reference_points
 
     def forward(self, src, spatial_shapes, level_start_index, valid_ratios, pos=None, padding_mask=None):
+        print("DEBUG: XFMR-ENCODE" "##############################################")
+
         output = src
         reference_points = self.get_reference_points(spatial_shapes, valid_ratios, device=src.device)
-        for _, layer in enumerate(self.layers):
-            output = layer(output, pos, reference_points, spatial_shapes, level_start_index, padding_mask)
+
+        # token merge
+        if self.tome_info.get("enable"):
+            for _, layer in enumerate(self.layers):
+
+                output, pos = layer(output, pos, reference_points,
+                               spatial_shapes, level_start_index,
+                               padding_mask)
+                print("DEBUG: XFMR-ENCODE Pos shape: ", pos.shape)
+
+        else:
+            for _, layer in enumerate(self.layers):
+                output = layer(output, pos, reference_points,
+                               spatial_shapes, level_start_index,
+                               padding_mask)
 
         return output
 
@@ -389,6 +470,10 @@ def build_deforamble_transformer(args):
         dec_n_points=args.dec_n_points,
         enc_n_points=args.enc_n_points,
         two_stage=args.two_stage,
-        two_stage_num_proposals=args.num_queries)
+        two_stage_num_proposals=args.num_queries,
+        tome_info={"enable": args.enable_token_merge,
+                   "R": args.num_token_merge,
+                   }
+        )
 
 
